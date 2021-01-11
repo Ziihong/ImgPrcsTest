@@ -26,7 +26,8 @@ protected:
 
 	// 생성된 메시지 맵 함수
 	virtual BOOL OnInitDialog();
-	virtual BOOL DestroyWindow();
+	//virtual BOOL DestroyWindow();
+	afx_msg void OnDestroy();
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
@@ -35,8 +36,13 @@ protected:
 private:
 	IplImage* m_pMainImgBuf;
 	CStatic m_DispCtrl;
+	int isFileOpen;
+	int isFileHSV;
 
 public:
 	void DisplayImage(IplImage* pImage);//, CDC *pDC, CRect& rect);
 	afx_msg void OnBnClickedButtonOpen();
+	IplImage* Mat_toIpl(Mat img);
+	Mat Ipl_toMat(IplImage* img);
+	afx_msg void OnBnClickedButtonTohsv();
 };

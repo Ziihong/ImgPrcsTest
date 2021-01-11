@@ -52,6 +52,8 @@ CImgPrcsTestDlg::CImgPrcsTestDlg(CWnd* pParent /*=NULL*/)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	m_pMainImgBuf = NULL;
+	isFileOpen = 0;
+	isFileHSV = 0;
 }
 
 void CImgPrcsTestDlg::DoDataExchange(CDataExchange* pDX)
@@ -66,6 +68,8 @@ BEGIN_MESSAGE_MAP(CImgPrcsTestDlg, CDialog)
 	ON_WM_QUERYDRAGICON()
 	//}}AFX_MSG_MAP
 	ON_BN_CLICKED(IDC_BUTTON_OPEN, &CImgPrcsTestDlg::OnBnClickedButtonOpen)
+
+	ON_BN_CLICKED(IDC_BUTTON_TOHSV, &CImgPrcsTestDlg::OnBnClickedButtonTohsv)
 END_MESSAGE_MAP()
 
 
@@ -144,9 +148,11 @@ void CImgPrcsTestDlg::OnPaint()
 	}
 	else
 	{
+		/*
 		if(m_pMainImgBuf){
 			DisplayImage(m_pMainImgBuf);
 		}
+		*/
 		CDialog::OnPaint();
 	}
 
@@ -207,7 +213,7 @@ void CImgPrcsTestDlg::DisplayImage(IplImage* pImage)//, CDC *pDC, CRect& rect)
 void CImgPrcsTestDlg::OnBnClickedButtonOpen()
 {
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	char szFilter[] = "image(*.jpg;*bmp)|*.jpg;*.bmp|";
+	char szFilter[] = "image(*.jpg;*.bmp;*.png)|*.jpg;*.bmp;*.png|";
 
 	CFileDialog dlg(TRUE, NULL,NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT,(CString)szFilter,NULL);
 
@@ -216,15 +222,63 @@ void CImgPrcsTestDlg::OnBnClickedButtonOpen()
 		return; 
 	}
 	
+	// 변수 사용하기 전 메모리 할당 해제
 	if(m_pMainImgBuf){
-		cvReleaseImage(&m_pMainImgBuf);
+		//cvReleaseImage(&m_pMainImgBuf);
 	}
-	m_pMainImgBuf = cvLoadImage(dlg.GetPathName());
-	DisplayImage(m_pMainImgBuf);
-	
-}
-BOOL CImgPrcsTestDlg::DestroyWindow(){
-	cvReleaseImage( &m_pMainImgBuf );
 
-	return CDialog::DestroyWindow();
+	m_pMainImgBuf = cvLoadImage((char*)(LPCTSTR)dlg.GetPathName());
+
+	DisplayImage(m_pMainImgBuf);
+
+	isFileOpen = 1;
+	isFileHSV = 0;
+}
+
+void CImgPrcsTestDlg::OnBnClickedButtonTohsv()
+{
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+
+	//hsv 변환하기
+	if(!isFileOpen){
+		AfxMessageBox(_T("선택된 이미지가 없습니다."));
+		return;
+	}
+
+	if(isFileHSV) return;
+
+
+	Mat bgrImg, hsvImg;
+
+	bgrImg = Ipl_toMat(m_pMainImgBuf);
+	cv::cvtColor(bgrImg, hsvImg, CV_BGR2HSV);
+	m_pMainImgBuf = Mat_toIpl(hsvImg);
+	
+	DisplayImage(m_pMainImgBuf);
+	isFileHSV = 1;
+
+}
+
+// Mat to IplImage*
+IplImage* CImgPrcsTestDlg::Mat_toIpl(Mat img){
+	IplImage* convertImg;
+	convertImg = new IplImage(img);
+
+	return convertImg;
+}
+
+// IplImage* to Mat
+Mat CImgPrcsTestDlg::Ipl_toMat(IplImage* img){
+	Mat convertImg; 
+	convertImg = cvarrToMat(img);
+
+	return convertImg;
+}
+
+void CImgPrcsTestDlg::OnDestroy(){
+
+	if( m_pMainImgBuf ){
+		cvReleaseImage( &m_pMainImgBuf );
+	}
+	CDialog::DestroyWindow();
 }
