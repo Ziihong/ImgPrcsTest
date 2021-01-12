@@ -73,8 +73,9 @@ BEGIN_MESSAGE_MAP(CImgPrcsTestDlg, CDialog)
 	ON_BN_CLICKED(IDC_BUTTON_HUE, &CImgPrcsTestDlg::OnBnClickedButtonHue)
 	ON_BN_CLICKED(IDC_BUTTON_SAT, &CImgPrcsTestDlg::OnBnClickedButtonSat)
 	ON_BN_CLICKED(IDC_BUTTON_VAL, &CImgPrcsTestDlg::OnBnClickedButtonVal)
-	ON_BN_CLICKED(IDC_BUTTON_DETECT_YELLOW, &CImgPrcsTestDlg::OnBnClickedButtonDetectYellow)
 	ON_BN_CLICKED(IDC_BUTTON_ORIGIN, &CImgPrcsTestDlg::OnBnClickedButtonOrigin)
+	ON_BN_CLICKED(IDC_BUTTON_DETECT_YELLOW, &CImgPrcsTestDlg::OnBnClickedButtonDetectYellowFun)
+	ON_BN_CLICKED(IDC_BUTTON_DETECT_YELLOW_PIXEL, &CImgPrcsTestDlg::OnBnClickedButtonDetectYellowPixel)
 END_MESSAGE_MAP()
 
 
@@ -319,7 +320,7 @@ Mat CImgPrcsTestDlg::Ipl_toMat(IplImage* img){
 	return convertImg;
 }
 
-void CImgPrcsTestDlg::OnBnClickedButtonDetectYellow()
+void CImgPrcsTestDlg::OnBnClickedButtonDetectYellowFun()
 {
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
 
@@ -332,7 +333,7 @@ void CImgPrcsTestDlg::OnBnClickedButtonDetectYellow()
 	Mat bgrImg = Ipl_toMat(m_pMainImgBuf);
 
 	Mat hsvImg, yellow_mask, yellowImg;
-	IplImage* yellowImgBuf;
+	IplImage* convertImgBuf;
 
 	cvtColor(bgrImg, hsvImg, COLOR_BGR2HSV);   //hsv변환
 	Scalar lower_yellow = Scalar(20, 20, 100);
@@ -341,6 +342,49 @@ void CImgPrcsTestDlg::OnBnClickedButtonDetectYellow()
 	inRange(hsvImg, lower_yellow, upper_yellow, yellow_mask); //이진화
 	bitwise_and(bgrImg, bgrImg, yellowImg, yellow_mask);
 	
-	yellowImgBuf = Mat_toIpl(yellowImg);
-	DisplayImage(yellowImgBuf);
+	convertImgBuf = Mat_toIpl(yellowImg);
+	DisplayImage(convertImgBuf);
+
+}
+
+void CImgPrcsTestDlg::OnBnClickedButtonDetectYellowPixel()
+{
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+
+	if(!isFileOpen){
+		AfxMessageBox(_T("선택된 이미지가 없습니다."));
+		return;
+	}
+
+	Mat bgrImg, hsvImg;
+	bgrImg = Ipl_toMat(m_pMainImgBuf);
+	cvtColor(bgrImg, hsvImg, COLOR_BGR2HSV);
+	IplImage* convertImgBuf = Mat_toIpl(hsvImg);
+	
+	for(int col=0; col<convertImgBuf->widthStep; col+=convertImgBuf->nChannels){
+		for (int row=0; row<convertImgBuf->height; row++){
+			
+			int idx = col + row*convertImgBuf->widthStep;
+			char h = convertImgBuf->imageData[idx];
+			char s = convertImgBuf->imageData[idx+1];
+			char v = convertImgBuf->imageData[idx+2];
+			
+			//yellow->!(20<=h && h<=32)
+			if(!(20<=h && h<=32)){
+			convertImgBuf->imageData[idx] = 0;
+			convertImgBuf->imageData[idx+1] = 0; 
+			convertImgBuf->imageData[idx+2] = 0;
+			}
+			/*
+			else{
+			convertImgBuf->imageData[idx] = 254;
+			convertImgBuf->imageData[idx+1] = 254; 
+			convertImgBuf->imageData[idx+2] = 254;
+			}
+			*/
+
+		}
+	}
+
+	DisplayImage(convertImgBuf);
 }

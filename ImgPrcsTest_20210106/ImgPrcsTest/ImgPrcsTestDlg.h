@@ -50,7 +50,8 @@ public:
 	afx_msg void OnBnClickedButtonHue();
 	afx_msg void OnBnClickedButtonSat();
 	afx_msg void OnBnClickedButtonVal();
-	
-	afx_msg void OnBnClickedButtonDetectYellow();
 	afx_msg void OnBnClickedButtonOrigin();
+
+	afx_msg void OnBnClickedButtonDetectYellowFun();
+	afx_msg void OnBnClickedButtonDetectYellowPixel();
 };
