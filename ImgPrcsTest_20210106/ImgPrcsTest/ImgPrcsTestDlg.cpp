@@ -52,8 +52,10 @@ CImgPrcsTestDlg::CImgPrcsTestDlg(CWnd* pParent /*=NULL*/)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	m_pMainImgBuf = NULL;
+	hueBuf = NULL;
+	satBuf = NULL;
+	valBuf = NULL;
 	isFileOpen = 0;
-	isFileHSV = 0;
 }
 
 void CImgPrcsTestDlg::DoDataExchange(CDataExchange* pDX)
@@ -68,8 +70,11 @@ BEGIN_MESSAGE_MAP(CImgPrcsTestDlg, CDialog)
 	ON_WM_QUERYDRAGICON()
 	//}}AFX_MSG_MAP
 	ON_BN_CLICKED(IDC_BUTTON_OPEN, &CImgPrcsTestDlg::OnBnClickedButtonOpen)
-
-	ON_BN_CLICKED(IDC_BUTTON_TOHSV, &CImgPrcsTestDlg::OnBnClickedButtonTohsv)
+	ON_BN_CLICKED(IDC_BUTTON_HUE, &CImgPrcsTestDlg::OnBnClickedButtonHue)
+	ON_BN_CLICKED(IDC_BUTTON_SAT, &CImgPrcsTestDlg::OnBnClickedButtonSat)
+	ON_BN_CLICKED(IDC_BUTTON_VAL, &CImgPrcsTestDlg::OnBnClickedButtonVal)
+	ON_BN_CLICKED(IDC_BUTTON_DETECT_YELLOW, &CImgPrcsTestDlg::OnBnClickedButtonDetectYellow)
+	ON_BN_CLICKED(IDC_BUTTON_ORIGIN, &CImgPrcsTestDlg::OnBnClickedButtonOrigin)
 END_MESSAGE_MAP()
 
 
@@ -103,6 +108,7 @@ BOOL CImgPrcsTestDlg::OnInitDialog()
 	//  프레임워크가 이 작업을 자동으로 수행합니다.
 	SetIcon(m_hIcon, TRUE);			// 큰 아이콘을 설정합니다.
 	SetIcon(m_hIcon, FALSE);		// 작은 아이콘을 설정합니다.
+
 
 	// TODO: 여기에 추가 초기화 작업을 추가합니다.
 
@@ -229,35 +235,73 @@ void CImgPrcsTestDlg::OnBnClickedButtonOpen()
 
 	DisplayImage(m_pMainImgBuf);
 
-	isFileOpen = 1;
-	isFileHSV = 0;
-}
+// Edit by Namjae
+	hueBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 1);
+	satBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 1);
+	valBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 1);
+	cvSplit(m_pMainImgBuf, hueBuf, satBuf, valBuf, NULL);
+// Edit by Namjae
 
-void CImgPrcsTestDlg::OnBnClickedButtonTohsv()
+	isFileOpen = 1;
+
+}
+	
+	// 얼굴 인식
+	//cv::CascadeClassifier face_classifier;
+	//face_clasccifier.load("C:\\Users\\us er\\Downloads\\haarcascade_frontalface_default.xml");
+
+
+void CImgPrcsTestDlg::OnBnClickedButtonOrigin()
 {
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
-
-	//hsv 변환하기
 	if(!isFileOpen){
 		AfxMessageBox(_T("선택된 이미지가 없습니다."));
 		return;
 	}
-
-	if(isFileHSV) return;
-
-	Mat bgrImg, hsvImg;
-	IplImage* m_hsvImgBuf;
-
-	bgrImg = Ipl_toMat(m_pMainImgBuf);
-	cv::cvtColor(bgrImg, hsvImg, CV_BGR2HSV);
-	m_hsvImgBuf = Mat_toIpl(hsvImg);
-
-	m_pMainImgBuf = cvCloneImage(m_hsvImgBuf);
-
 	DisplayImage(m_pMainImgBuf);
-	isFileHSV = 1;
-
 }
+
+
+void CImgPrcsTestDlg::OnBnClickedButtonHue()
+{
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	if(!isFileOpen){
+		AfxMessageBox(_T("선택된 이미지가 없습니다."));
+		return;
+	}
+	DisplayImage(hueBuf);
+	
+}
+
+void CImgPrcsTestDlg::OnBnClickedButtonSat()
+{
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	if(!isFileOpen){
+		AfxMessageBox(_T("선택된 이미지가 없습니다."));
+		return;
+	}
+	DisplayImage(satBuf);
+}
+
+void CImgPrcsTestDlg::OnBnClickedButtonVal()
+{
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	if(!isFileOpen){
+		AfxMessageBox(_T("선택된 이미지가 없습니다."));
+		return;
+	}
+	DisplayImage(valBuf);
+}
+
+BOOL CImgPrcsTestDlg::DestroyWindow(){
+	
+	cvReleaseImage( &m_pMainImgBuf );
+	cvReleaseImage( &hueBuf );
+	cvReleaseImage( &satBuf );
+	cvReleaseImage( &valBuf );
+	return CDialog::DestroyWindow();
+}
+
 
 // Mat to IplImage*
 IplImage* CImgPrcsTestDlg::Mat_toIpl(Mat img){
@@ -275,9 +319,28 @@ Mat CImgPrcsTestDlg::Ipl_toMat(IplImage* img){
 	return convertImg;
 }
 
-void CImgPrcsTestDlg::OnDestroy(){
+void CImgPrcsTestDlg::OnBnClickedButtonDetectYellow()
+{
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
 
-	if( m_pMainImgBuf )	cvReleaseImage( &m_pMainImgBuf );
+	if(!isFileOpen){
+		AfxMessageBox(_T("선택된 이미지가 없습니다."));
+		return;
+	}
+	
+	//색상 검출
+	Mat bgrImg = Ipl_toMat(m_pMainImgBuf);
 
-	CDialog::DestroyWindow();
+	Mat hsvImg, yellow_mask, yellowImg;
+	IplImage* yellowImgBuf;
+
+	cvtColor(bgrImg, hsvImg, COLOR_BGR2HSV);   //hsv변환
+	Scalar lower_yellow = Scalar(20, 20, 100);
+	Scalar upper_yellow = Scalar(32, 255, 255);
+
+	inRange(hsvImg, lower_yellow, upper_yellow, yellow_mask); //이진화
+	bitwise_and(bgrImg, bgrImg, yellowImg, yellow_mask);
+	
+	yellowImgBuf = Mat_toIpl(yellowImg);
+	DisplayImage(yellowImgBuf);
 }
