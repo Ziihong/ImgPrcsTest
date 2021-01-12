@@ -148,11 +148,9 @@ void CImgPrcsTestDlg::OnPaint()
 	}
 	else
 	{
-		/*
 		if(m_pMainImgBuf){
 			DisplayImage(m_pMainImgBuf);
 		}
-		*/
 		CDialog::OnPaint();
 	}
 
@@ -224,7 +222,7 @@ void CImgPrcsTestDlg::OnBnClickedButtonOpen()
 	
 	// 변수 사용하기 전 메모리 할당 해제
 	if(m_pMainImgBuf){
-		//cvReleaseImage(&m_pMainImgBuf);
+		cvReleaseImage(&m_pMainImgBuf);
 	}
 
 	m_pMainImgBuf = cvLoadImage((char*)(LPCTSTR)dlg.GetPathName());
@@ -247,13 +245,15 @@ void CImgPrcsTestDlg::OnBnClickedButtonTohsv()
 
 	if(isFileHSV) return;
 
-
 	Mat bgrImg, hsvImg;
+	IplImage* m_hsvImgBuf;
 
 	bgrImg = Ipl_toMat(m_pMainImgBuf);
 	cv::cvtColor(bgrImg, hsvImg, CV_BGR2HSV);
-	m_pMainImgBuf = Mat_toIpl(hsvImg);
-	
+	m_hsvImgBuf = Mat_toIpl(hsvImg);
+
+	m_pMainImgBuf = cvCloneImage(m_hsvImgBuf);
+
 	DisplayImage(m_pMainImgBuf);
 	isFileHSV = 1;
 
@@ -277,8 +277,7 @@ Mat CImgPrcsTestDlg::Ipl_toMat(IplImage* img){
 
 void CImgPrcsTestDlg::OnDestroy(){
 
-	if( m_pMainImgBuf ){
-		cvReleaseImage( &m_pMainImgBuf );
-	}
+	if( m_pMainImgBuf )	cvReleaseImage( &m_pMainImgBuf );
+
 	CDialog::DestroyWindow();
 }
