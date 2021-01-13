@@ -6,6 +6,7 @@
 #include "ImgPrcsTest.h"
 #include "ImgPrcsTestDlg.h"
 
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -55,7 +56,12 @@ CImgPrcsTestDlg::CImgPrcsTestDlg(CWnd* pParent /*=NULL*/)
 	hueBuf = NULL;
 	satBuf = NULL;
 	valBuf = NULL;
+	convertImgBuf = NULL;
+	displayImgBuf = NULL;
 	isFileOpen = 0;
+	hue_rangeLower = 0; hue_rangeUpper = 180; hue_EditLower = 0; hue_EditUpper = 180;
+	sat_rangeLower = 0; sat_rangeUpper = 255; sat_EditLower = 0; sat_EditUpper = 255;
+	val_rangeLower = 0; val_rangeUpper = 255; val_EditLower = 0; val_EditUpper = 255;
 }
 
 void CImgPrcsTestDlg::DoDataExchange(CDataExchange* pDX)
@@ -74,8 +80,15 @@ BEGIN_MESSAGE_MAP(CImgPrcsTestDlg, CDialog)
 	ON_BN_CLICKED(IDC_BUTTON_SAT, &CImgPrcsTestDlg::OnBnClickedButtonSat)
 	ON_BN_CLICKED(IDC_BUTTON_VAL, &CImgPrcsTestDlg::OnBnClickedButtonVal)
 	ON_BN_CLICKED(IDC_BUTTON_ORIGIN, &CImgPrcsTestDlg::OnBnClickedButtonOrigin)
-	ON_BN_CLICKED(IDC_BUTTON_DETECT_YELLOW, &CImgPrcsTestDlg::OnBnClickedButtonDetectYellowFun)
+	ON_BN_CLICKED(IDC_BUTTON_DETECT_YELLOW_FUN, &CImgPrcsTestDlg::OnBnClickedButtonDetectYellowFun)
 	ON_BN_CLICKED(IDC_BUTTON_DETECT_YELLOW_PIXEL, &CImgPrcsTestDlg::OnBnClickedButtonDetectYellowPixel)
+	ON_EN_CHANGE(IDC_EDIT_HUE_LOWER, &CImgPrcsTestDlg::OnEnChangeEditHueLower)
+	ON_EN_CHANGE(IDC_EDIT_HUE_UPPER, &CImgPrcsTestDlg::OnEnChangeEditHueUpper)
+	ON_EN_CHANGE(IDC_EDIT_SAT_LOWER, &CImgPrcsTestDlg::OnEnChangeEditSatLower)
+	ON_EN_CHANGE(IDC_EDIT_SAT_UPPER, &CImgPrcsTestDlg::OnEnChangeEditSatUpper)
+	ON_EN_CHANGE(IDC_EDIT_VAL_LOWER, &CImgPrcsTestDlg::OnEnChangeEditValLower)
+	ON_EN_CHANGE(IDC_EDIT_VAL_UPPER, &CImgPrcsTestDlg::OnEnChangeEditValUpper)
+	ON_BN_CLICKED(IDC_BUTTON_DETECT, &CImgPrcsTestDlg::OnBnClickedButtonDetect)
 END_MESSAGE_MAP()
 
 
@@ -246,10 +259,6 @@ void CImgPrcsTestDlg::OnBnClickedButtonOpen()
 	isFileOpen = 1;
 
 }
-	
-	// 얼굴 인식
-	//cv::CascadeClassifier face_classifier;
-	//face_clasccifier.load("C:\\Users\\us er\\Downloads\\haarcascade_frontalface_default.xml");
 
 
 void CImgPrcsTestDlg::OnBnClickedButtonOrigin()
@@ -300,6 +309,8 @@ BOOL CImgPrcsTestDlg::DestroyWindow(){
 	cvReleaseImage( &hueBuf );
 	cvReleaseImage( &satBuf );
 	cvReleaseImage( &valBuf );
+	cvReleaseImage( &displayImgBuf );
+	cvReleaseImage( &convertImgBuf );
 	return CDialog::DestroyWindow();
 }
 
@@ -356,11 +367,9 @@ void CImgPrcsTestDlg::OnBnClickedButtonDetectYellowPixel()
 		return;
 	}
 
-	Mat bgrImg, hsvImg;
-	bgrImg = Ipl_toMat(m_pMainImgBuf);
-	cvtColor(bgrImg, hsvImg, COLOR_BGR2HSV);
-	IplImage* convertImgBuf = Mat_toIpl(hsvImg);
-	
+	convertImgBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 3);
+	cvCvtColor(m_pMainImgBuf, convertImgBuf, CV_BGR2HSV);
+
 	for(int col=0; col<convertImgBuf->widthStep; col+=convertImgBuf->nChannels){
 		for (int row=0; row<convertImgBuf->height; row++){
 			
@@ -368,23 +377,125 @@ void CImgPrcsTestDlg::OnBnClickedButtonDetectYellowPixel()
 			char h = convertImgBuf->imageData[idx];
 			char s = convertImgBuf->imageData[idx+1];
 			char v = convertImgBuf->imageData[idx+2];
-			
+
 			//yellow->!(20<=h && h<=32)
-			if(!(20<=h && h<=32)){
+			//blue->!(100<h && h<130)
+			if(!(20<h && h<32)){
 			convertImgBuf->imageData[idx] = 0;
 			convertImgBuf->imageData[idx+1] = 0; 
 			convertImgBuf->imageData[idx+2] = 0;
 			}
-			/*
-			else{
-			convertImgBuf->imageData[idx] = 254;
-			convertImgBuf->imageData[idx+1] = 254; 
-			convertImgBuf->imageData[idx+2] = 254;
-			}
-			*/
-
 		}
 	}
+	
+	displayImgBuf = cvCreateImage(cvGetSize(convertImgBuf), IPL_DEPTH_8U, 3);
+	cvCvtColor(convertImgBuf, displayImgBuf, CV_HSV2BGR);
 
-	DisplayImage(convertImgBuf);
+	DisplayImage(displayImgBuf);
 }
+
+void CImgPrcsTestDlg::OnEnChangeEditHueLower()
+{
+	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
+	// CDialog::OnInitDialog() 함수를 재지정 
+	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
+	// 이 알림 메시지를 보내지 않습니다.
+
+	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	
+	hue_rangeLower = GetDlgItemInt(IDC_EDIT_HUE_LOWER);
+}
+
+void CImgPrcsTestDlg::OnEnChangeEditHueUpper()
+{
+	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
+	// CDialog::OnInitDialog() 함수를 재지정 
+	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
+	// 이 알림 메시지를 보내지 않습니다.
+
+	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	hue_rangeUpper = GetDlgItemInt(IDC_EDIT_HUE_UPPER);
+}
+
+void CImgPrcsTestDlg::OnEnChangeEditSatLower()
+{
+	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
+	// CDialog::OnInitDialog() 함수를 재지정 
+	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
+	// 이 알림 메시지를 보내지 않습니다.
+
+	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	sat_rangeLower = GetDlgItemInt(IDC_EDIT_SAT_LOWER);
+}
+
+void CImgPrcsTestDlg::OnEnChangeEditSatUpper()
+{
+	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
+	// CDialog::OnInitDialog() 함수를 재지정 
+	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
+	// 이 알림 메시지를 보내지 않습니다.
+
+	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	sat_rangeUpper = GetDlgItemInt(IDC_EDIT_SAT_UPPER);
+}
+
+void CImgPrcsTestDlg::OnEnChangeEditValLower()
+{
+	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
+	// CDialog::OnInitDialog() 함수를 재지정 
+	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
+	// 이 알림 메시지를 보내지 않습니다.
+
+	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	val_rangeLower = GetDlgItemInt(IDC_EDIT_VAL_LOWER);
+}
+
+void CImgPrcsTestDlg::OnEnChangeEditValUpper()
+{
+	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
+	// CDialog::OnInitDialog() 함수를 재지정 
+	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
+	// 이 알림 메시지를 보내지 않습니다.
+
+	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	val_rangeUpper = GetDlgItemInt(IDC_EDIT_VAL_UPPER);
+}
+
+void CImgPrcsTestDlg::OnBnClickedButtonDetect()
+{
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+
+	if(!isFileOpen){
+		AfxMessageBox(_T("선택된 이미지가 없습니다."));
+		return;
+	}
+
+	convertImgBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 3);
+	cvCvtColor(m_pMainImgBuf, convertImgBuf, CV_BGR2HSV);
+
+	for(int col=0; col<convertImgBuf->widthStep; col+=convertImgBuf->nChannels){
+		for (int row=0; row<convertImgBuf->height; row++){
+			
+			int idx = col + row*convertImgBuf->widthStep;
+			unsigned char h = convertImgBuf->imageData[idx];
+			unsigned char s = convertImgBuf->imageData[idx+1];
+			unsigned char v = convertImgBuf->imageData[idx+2];
+			
+			//yellow->!(20<=h && h<=32)
+			//blue->!(90<h && h<120)
+			//green->!(30<h && h<80)
+			if(!(hue_rangeLower<=h && h<=hue_rangeUpper && sat_rangeLower<=s && s<=sat_rangeUpper && val_rangeLower<=v && v<=val_rangeUpper)){
+				convertImgBuf->imageData[idx] = 0;
+				convertImgBuf->imageData[idx+1] = 0; 
+				convertImgBuf->imageData[idx+2] = 0;
+			}
+		}
+	}
+	
+	displayImgBuf = cvCreateImage(cvGetSize(convertImgBuf), IPL_DEPTH_8U, 3);
+	cvCvtColor(convertImgBuf, displayImgBuf, CV_HSV2BGR);
+
+	DisplayImage(displayImgBuf);
+}
+
+

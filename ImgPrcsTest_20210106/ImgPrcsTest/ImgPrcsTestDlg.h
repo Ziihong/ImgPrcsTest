@@ -38,6 +38,8 @@ private:
 	IplImage* hueBuf;
 	IplImage* satBuf;
 	IplImage* valBuf;
+	IplImage* convertImgBuf;
+	IplImage* displayImgBuf;
 	CStatic m_DispCtrl;
 	int isFileOpen;
 	
@@ -54,4 +56,16 @@ public:
 
 	afx_msg void OnBnClickedButtonDetectYellowFun();
 	afx_msg void OnBnClickedButtonDetectYellowPixel();
+	
+	// √ ±‚»≠
+	int hue_rangeLower, hue_rangeUpper, hue_EditLower, hue_EditUpper;
+	int sat_rangeLower, sat_rangeUpper, sat_EditLower, sat_EditUpper; 
+	int	val_rangeLower, val_rangeUpper, val_EditLower, val_EditUpper;
+	afx_msg void OnEnChangeEditHueLower();
+	afx_msg void OnEnChangeEditHueUpper();
+	afx_msg void OnEnChangeEditSatLower();
+	afx_msg void OnEnChangeEditSatUpper();
+	afx_msg void OnEnChangeEditValLower();
+	afx_msg void OnEnChangeEditValUpper();
+	afx_msg void OnBnClickedButtonDetect();
 };
