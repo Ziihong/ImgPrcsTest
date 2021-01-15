@@ -52,16 +52,17 @@ CImgPrcsTestDlg::CImgPrcsTestDlg(CWnd* pParent /*=NULL*/)
 	: CDialog(CImgPrcsTestDlg::IDD, pParent)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
-	m_pMainImgBuf = NULL;
+	m_pMainImgBuf = NULL;     // Load Image
 	hueBuf = NULL;
 	satBuf = NULL;
 	valBuf = NULL;
-	convertImgBuf = NULL;
-	displayImgBuf = NULL;
+	convertImgBuf = NULL;	 // bgr to hsv Image	
+	displayImgBuf = NULL;	 // hsv to bgr Image
 	isFileOpen = 0;
-	hue_rangeLower = 0; hue_rangeUpper = 180; hue_EditLower = 0; hue_EditUpper = 180;
-	sat_rangeLower = 0; sat_rangeUpper = 255; sat_EditLower = 0; sat_EditUpper = 255;
-	val_rangeLower = 0; val_rangeUpper = 255; val_EditLower = 0; val_EditUpper = 255;
+	hue_rangeLower = 0; hue_rangeUpper = 180; 
+	sat_rangeLower = 0; sat_rangeUpper = 255; 
+	val_rangeLower = 0; val_rangeUpper = 255; 
+	val_rangeBlob = 0; 
 }
 
 void CImgPrcsTestDlg::DoDataExchange(CDataExchange* pDX)
@@ -80,15 +81,15 @@ BEGIN_MESSAGE_MAP(CImgPrcsTestDlg, CDialog)
 	ON_BN_CLICKED(IDC_BUTTON_SAT, &CImgPrcsTestDlg::OnBnClickedButtonSat)
 	ON_BN_CLICKED(IDC_BUTTON_VAL, &CImgPrcsTestDlg::OnBnClickedButtonVal)
 	ON_BN_CLICKED(IDC_BUTTON_ORIGIN, &CImgPrcsTestDlg::OnBnClickedButtonOrigin)
-	ON_BN_CLICKED(IDC_BUTTON_DETECT_YELLOW_FUN, &CImgPrcsTestDlg::OnBnClickedButtonDetectYellowFun)
-	ON_BN_CLICKED(IDC_BUTTON_DETECT_YELLOW_PIXEL, &CImgPrcsTestDlg::OnBnClickedButtonDetectYellowPixel)
+	ON_BN_CLICKED(IDC_BUTTON_DETECT, &CImgPrcsTestDlg::OnBnClickedButtonDetect)
+	ON_BN_CLICKED(IDC_BUTTON_BLOB_LABELING, &CImgPrcsTestDlg::OnBnClickedButtonBlobLabeling)
 	ON_EN_CHANGE(IDC_EDIT_HUE_LOWER, &CImgPrcsTestDlg::OnEnChangeEditHueLower)
 	ON_EN_CHANGE(IDC_EDIT_HUE_UPPER, &CImgPrcsTestDlg::OnEnChangeEditHueUpper)
 	ON_EN_CHANGE(IDC_EDIT_SAT_LOWER, &CImgPrcsTestDlg::OnEnChangeEditSatLower)
 	ON_EN_CHANGE(IDC_EDIT_SAT_UPPER, &CImgPrcsTestDlg::OnEnChangeEditSatUpper)
 	ON_EN_CHANGE(IDC_EDIT_VAL_LOWER, &CImgPrcsTestDlg::OnEnChangeEditValLower)
 	ON_EN_CHANGE(IDC_EDIT_VAL_UPPER, &CImgPrcsTestDlg::OnEnChangeEditValUpper)
-	ON_BN_CLICKED(IDC_BUTTON_DETECT, &CImgPrcsTestDlg::OnBnClickedButtonDetect)
+	ON_EN_CHANGE(IDC_EDIT_BLOB_VAL, &CImgPrcsTestDlg::OnEnChangeEditBlobVal)
 END_MESSAGE_MAP()
 
 
@@ -241,22 +242,26 @@ void CImgPrcsTestDlg::OnBnClickedButtonOpen()
 	}
 	
 	// 변수 사용하기 전 메모리 할당 해제
-	if(m_pMainImgBuf){
-		cvReleaseImage(&m_pMainImgBuf);
-	}
+	if(m_pMainImgBuf) cvReleaseImage(&m_pMainImgBuf);
+	if(hueBuf) cvReleaseImage(&hueBuf);
+	if(satBuf) cvReleaseImage(&satBuf);
+	if(valBuf) cvReleaseImage(&valBuf);
+	if(convertImgBuf) cvReleaseImage(&convertImgBuf);
 
 	m_pMainImgBuf = cvLoadImage((char*)(LPCTSTR)dlg.GetPathName());
 
 	DisplayImage(m_pMainImgBuf);
 
-// Edit by Namjae
 	hueBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 1);
 	satBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 1);
 	valBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 1);
 	cvSplit(m_pMainImgBuf, hueBuf, satBuf, valBuf, NULL);
-// Edit by Namjae
 
 	isFileOpen = 1;
+
+	// m_pMainImgBuf -> hsv Image
+	convertImgBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 3);
+	cvCvtColor(m_pMainImgBuf, convertImgBuf, CV_BGR2HSV);
 
 }
 
@@ -311,6 +316,7 @@ BOOL CImgPrcsTestDlg::DestroyWindow(){
 	cvReleaseImage( &valBuf );
 	cvReleaseImage( &displayImgBuf );
 	cvReleaseImage( &convertImgBuf );
+
 	return CDialog::DestroyWindow();
 }
 
@@ -331,135 +337,6 @@ Mat CImgPrcsTestDlg::Ipl_toMat(IplImage* img){
 	return convertImg;
 }
 
-void CImgPrcsTestDlg::OnBnClickedButtonDetectYellowFun()
-{
-	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
-
-	if(!isFileOpen){
-		AfxMessageBox(_T("선택된 이미지가 없습니다."));
-		return;
-	}
-	
-	//색상 검출
-	Mat bgrImg = Ipl_toMat(m_pMainImgBuf);
-
-	Mat hsvImg, yellow_mask, yellowImg;
-	IplImage* convertImgBuf;
-
-	cvtColor(bgrImg, hsvImg, COLOR_BGR2HSV);   //hsv변환
-	Scalar lower_yellow = Scalar(20, 20, 100);
-	Scalar upper_yellow = Scalar(32, 255, 255);
-
-	inRange(hsvImg, lower_yellow, upper_yellow, yellow_mask); //이진화
-	bitwise_and(bgrImg, bgrImg, yellowImg, yellow_mask);
-	
-	convertImgBuf = Mat_toIpl(yellowImg);
-	DisplayImage(convertImgBuf);
-
-}
-
-void CImgPrcsTestDlg::OnBnClickedButtonDetectYellowPixel()
-{
-	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
-
-	if(!isFileOpen){
-		AfxMessageBox(_T("선택된 이미지가 없습니다."));
-		return;
-	}
-
-	convertImgBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 3);
-	cvCvtColor(m_pMainImgBuf, convertImgBuf, CV_BGR2HSV);
-
-	for(int col=0; col<convertImgBuf->widthStep; col+=convertImgBuf->nChannels){
-		for (int row=0; row<convertImgBuf->height; row++){
-			
-			int idx = col + row*convertImgBuf->widthStep;
-			char h = convertImgBuf->imageData[idx];
-			char s = convertImgBuf->imageData[idx+1];
-			char v = convertImgBuf->imageData[idx+2];
-
-			//yellow->!(20<=h && h<=32)
-			//blue->!(100<h && h<130)
-			if(!(20<h && h<32)){
-			convertImgBuf->imageData[idx] = 0;
-			convertImgBuf->imageData[idx+1] = 0; 
-			convertImgBuf->imageData[idx+2] = 0;
-			}
-		}
-	}
-	
-	displayImgBuf = cvCreateImage(cvGetSize(convertImgBuf), IPL_DEPTH_8U, 3);
-	cvCvtColor(convertImgBuf, displayImgBuf, CV_HSV2BGR);
-
-	DisplayImage(displayImgBuf);
-}
-
-void CImgPrcsTestDlg::OnEnChangeEditHueLower()
-{
-	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
-	// CDialog::OnInitDialog() 함수를 재지정 
-	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
-	// 이 알림 메시지를 보내지 않습니다.
-
-	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	
-	hue_rangeLower = GetDlgItemInt(IDC_EDIT_HUE_LOWER);
-}
-
-void CImgPrcsTestDlg::OnEnChangeEditHueUpper()
-{
-	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
-	// CDialog::OnInitDialog() 함수를 재지정 
-	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
-	// 이 알림 메시지를 보내지 않습니다.
-
-	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	hue_rangeUpper = GetDlgItemInt(IDC_EDIT_HUE_UPPER);
-}
-
-void CImgPrcsTestDlg::OnEnChangeEditSatLower()
-{
-	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
-	// CDialog::OnInitDialog() 함수를 재지정 
-	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
-	// 이 알림 메시지를 보내지 않습니다.
-
-	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	sat_rangeLower = GetDlgItemInt(IDC_EDIT_SAT_LOWER);
-}
-
-void CImgPrcsTestDlg::OnEnChangeEditSatUpper()
-{
-	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
-	// CDialog::OnInitDialog() 함수를 재지정 
-	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
-	// 이 알림 메시지를 보내지 않습니다.
-
-	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	sat_rangeUpper = GetDlgItemInt(IDC_EDIT_SAT_UPPER);
-}
-
-void CImgPrcsTestDlg::OnEnChangeEditValLower()
-{
-	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
-	// CDialog::OnInitDialog() 함수를 재지정 
-	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
-	// 이 알림 메시지를 보내지 않습니다.
-
-	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	val_rangeLower = GetDlgItemInt(IDC_EDIT_VAL_LOWER);
-}
-
-void CImgPrcsTestDlg::OnEnChangeEditValUpper()
-{
-	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
-	// CDialog::OnInitDialog() 함수를 재지정 
-	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
-	// 이 알림 메시지를 보내지 않습니다.
-
-	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	val_rangeUpper = GetDlgItemInt(IDC_EDIT_VAL_UPPER);
-}
 
 void CImgPrcsTestDlg::OnBnClickedButtonDetect()
 {
@@ -469,7 +346,8 @@ void CImgPrcsTestDlg::OnBnClickedButtonDetect()
 		AfxMessageBox(_T("선택된 이미지가 없습니다."));
 		return;
 	}
-
+	
+	cvReleaseImage(&convertImgBuf);
 	convertImgBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 3);
 	cvCvtColor(m_pMainImgBuf, convertImgBuf, CV_BGR2HSV);
 
@@ -489,6 +367,11 @@ void CImgPrcsTestDlg::OnBnClickedButtonDetect()
 				convertImgBuf->imageData[idx+1] = 0; 
 				convertImgBuf->imageData[idx+2] = 0;
 			}
+			else{
+				/*
+				convertImgBuf->imageData[idx+1] = 0; 
+				convertImgBuf->imageData[idx+2] = -1;*/
+			}
 		}
 	}
 	
@@ -499,3 +382,202 @@ void CImgPrcsTestDlg::OnBnClickedButtonDetect()
 }
 
 
+void CImgPrcsTestDlg::OnBnClickedButtonBlobLabeling()
+{
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	if(!isFileOpen){
+		AfxMessageBox(_T("선택된 이미지가 없습니다."));
+		return;
+	}
+	/*
+	cvReleaseImage(&convertImgBuf);
+	convertImgBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 3);
+	cvCvtColor(m_pMainImgBuf, convertImgBuf, CV_BGR2HSV);
+	*/
+	int countRow = convertImgBuf->height;
+	int countCol = convertImgBuf->widthStep;
+	
+	checkBlob = new int[countCol + countRow*countCol];
+
+
+	// checkBlob 초기화
+	for(int col=0; col<countCol; col++){
+		for (int row=0; row<countRow; row++){
+			int idx = col + row*countCol;
+			checkBlob[idx] = 0;
+		}
+	}
+	
+	int label_h = 10;
+	for(int col=0; col<countCol; col+=convertImgBuf->nChannels){
+		for (int row=0; row<countRow; row++){
+			
+			int idx = col + row*countCol;
+			unsigned char h = convertImgBuf->imageData[idx];
+			unsigned char s = convertImgBuf->imageData[idx+1];
+			unsigned char v = convertImgBuf->imageData[idx+2];
+			
+			if(!(val_rangeBlob < v)){
+				convertImgBuf->imageData[idx] = 0;
+				convertImgBuf->imageData[idx+1] = 0; 
+				convertImgBuf->imageData[idx+2] = 0;
+			}
+			else{
+				convertImgBuf->imageData[idx] = 255;
+				convertImgBuf->imageData[idx+1] = 255;
+				convertImgBuf->imageData[idx+2] = 255;
+				
+				checkBlob[idx] = 1;
+
+			} 
+		}
+	}
+	
+
+	// labeling 개수 세기
+	for(int col=0; col<countCol; col+=convertImgBuf->nChannels){
+		for(int row=0; row<countRow; row++){
+			int blobPixel;
+			int idx = col + row*countCol;
+
+			if(checkBlob[idx] == 1){
+				
+				blobPixel = blobSize(convertImgBuf, label_h, row, col);
+				/*
+				CString msg;
+				msg.Format(_T("label: %d", blobPixel));
+				AfxMessageBox(msg);
+				*/
+				label_h += 10;
+			
+			}
+		}	
+	}
+	
+
+	displayImgBuf = cvCreateImage(cvGetSize(convertImgBuf), IPL_DEPTH_8U, 3);
+	cvCvtColor(convertImgBuf, displayImgBuf, CV_HSV2BGR);
+
+	DisplayImage(displayImgBuf);
+
+	delete[] checkBlob;
+
+}
+
+int CImgPrcsTestDlg::blobSize(IplImage* image, int label_h, int row, int col){
+	int countRow = image->height;
+	int countCol = image->widthStep;
+	int idx = col + row*countCol;
+
+	if(col<0 || row<0 || col>countCol-1 || row>countRow-1){
+		return 0;
+	}
+	
+	if(checkBlob[idx] == 2 || checkBlob[idx] == 0) return 0;
+
+	checkBlob[idx] = 2;
+
+	convertImgBuf->imageData[idx] = label_h;
+	convertImgBuf->imageData[idx+1] = 255;
+	convertImgBuf->imageData[idx+2] = 255;
+
+	return 1+blobSize(image, label_h, row, col-3)
+		+blobSize(image, label_h, row+1, col-3)
+		+blobSize(image, label_h, row+1, col)
+		+blobSize(image, label_h, row+1, col+3)
+		+blobSize(image, label_h, row, col+3)
+		+blobSize(image, label_h, row-1, col+3)
+		+blobSize(image, label_h, row-1, col)
+		+blobSize(image, label_h, row-1, col-3);
+}
+
+
+
+void CImgPrcsTestDlg::OnEnChangeEditHueLower()
+{
+	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
+	// CDialog::OnInitDialog() 함수를 재지정 
+	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
+	// 이 알림 메시지를 보내지 않습니다.
+
+	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	hue_rangeLower = GetDlgItemInt(IDC_EDIT_HUE_LOWER);
+	if(hue_rangeLower < 0) hue_rangeLower = 0;
+	
+}
+
+void CImgPrcsTestDlg::OnEnChangeEditHueUpper()
+{
+	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
+	// CDialog::OnInitDialog() 함수를 재지정 
+	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
+	// 이 알림 메시지를 보내지 않습니다.
+
+	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	hue_rangeUpper = GetDlgItemInt(IDC_EDIT_HUE_UPPER);
+	if(hue_rangeUpper > 180) hue_rangeUpper = 180;
+	
+}
+
+void CImgPrcsTestDlg::OnEnChangeEditSatLower()
+{
+	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
+	// CDialog::OnInitDialog() 함수를 재지정 
+	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
+	// 이 알림 메시지를 보내지 않습니다.
+
+	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	sat_rangeLower = GetDlgItemInt(IDC_EDIT_SAT_LOWER);
+	if(sat_rangeLower < 0) sat_rangeLower = 0;
+	
+}
+
+void CImgPrcsTestDlg::OnEnChangeEditSatUpper()
+{
+	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
+	// CDialog::OnInitDialog() 함수를 재지정 
+	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
+	// 이 알림 메시지를 보내지 않습니다.
+
+	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	sat_rangeUpper = GetDlgItemInt(IDC_EDIT_SAT_UPPER);
+	if(sat_rangeUpper > 255) sat_rangeUpper = 255;
+	
+}
+
+void CImgPrcsTestDlg::OnEnChangeEditValLower()
+{
+	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
+	// CDialog::OnInitDialog() 함수를 재지정 
+	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
+	// 이 알림 메시지를 보내지 않습니다.
+
+	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	val_rangeLower = GetDlgItemInt(IDC_EDIT_VAL_LOWER);
+	if(val_rangeLower < 0) val_rangeLower = 0;
+
+}
+
+void CImgPrcsTestDlg::OnEnChangeEditValUpper()
+{
+	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
+	// CDialog::OnInitDialog() 함수를 재지정 
+	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
+	// 이 알림 메시지를 보내지 않습니다.
+
+	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	val_rangeUpper = GetDlgItemInt(IDC_EDIT_VAL_UPPER);
+	if(val_rangeUpper > 255) val_rangeUpper = 255;
+}
+
+void CImgPrcsTestDlg::OnEnChangeEditBlobVal()
+{
+	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
+	// CDialog::OnInitDialog() 함수를 재지정 
+	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
+	// 이 알림 메시지를 보내지 않습니다.
+
+	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	val_rangeBlob = GetDlgItemInt(IDC_EDIT_BLOB_VAL);
+	if(val_rangeBlob < 0) val_rangeBlob = 0;
+}

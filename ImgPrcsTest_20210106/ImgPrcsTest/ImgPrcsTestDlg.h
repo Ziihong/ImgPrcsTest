@@ -54,18 +54,19 @@ public:
 	afx_msg void OnBnClickedButtonVal();
 	afx_msg void OnBnClickedButtonOrigin();
 
-	afx_msg void OnBnClickedButtonDetectYellowFun();
-	afx_msg void OnBnClickedButtonDetectYellowPixel();
-	
-	// 초기화
-	int hue_rangeLower, hue_rangeUpper, hue_EditLower, hue_EditUpper;
-	int sat_rangeLower, sat_rangeUpper, sat_EditLower, sat_EditUpper; 
-	int	val_rangeLower, val_rangeUpper, val_EditLower, val_EditUpper;
+	int hue_rangeLower, hue_rangeUpper;
+	int sat_rangeLower, sat_rangeUpper; 
+	int	val_rangeLower, val_rangeUpper;
+	int val_rangeBlob;
+	afx_msg void OnBnClickedButtonDetect();
+	afx_msg void OnBnClickedButtonBlobLabeling();
+	int blobSize(IplImage* image, int h_idx, int row, int col);
+	int* checkBlob;  // iplimage->1차원 배열 형태로
 	afx_msg void OnEnChangeEditHueLower();
 	afx_msg void OnEnChangeEditHueUpper();
 	afx_msg void OnEnChangeEditSatLower();
 	afx_msg void OnEnChangeEditSatUpper();
 	afx_msg void OnEnChangeEditValLower();
 	afx_msg void OnEnChangeEditValUpper();
-	afx_msg void OnBnClickedButtonDetect();
+	afx_msg void OnEnChangeEditBlobVal();
 };
