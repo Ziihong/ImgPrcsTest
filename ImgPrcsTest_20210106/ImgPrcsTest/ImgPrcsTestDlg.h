@@ -42,6 +42,13 @@ private:
 	IplImage* displayImgBuf;
 	CStatic m_DispCtrl;
 	int isFileOpen;
+	int hue_rangeLower, hue_rangeUpper;
+	int sat_rangeLower, sat_rangeUpper; 
+	int	val_rangeLower, val_rangeUpper;
+	int val_rangeBlob;
+	int* checkBlob;  // iplimage->1차원 배열 형태로
+
+	int center_x, center_y;
 	
 
 public:
@@ -54,14 +61,9 @@ public:
 	afx_msg void OnBnClickedButtonVal();
 	afx_msg void OnBnClickedButtonOrigin();
 
-	int hue_rangeLower, hue_rangeUpper;
-	int sat_rangeLower, sat_rangeUpper; 
-	int	val_rangeLower, val_rangeUpper;
-	int val_rangeBlob;
 	afx_msg void OnBnClickedButtonDetect();
 	afx_msg void OnBnClickedButtonBlobLabeling();
 	int blobSize(IplImage* image, int h_idx, int row, int col);
-	int* checkBlob;  // iplimage->1차원 배열 형태로
 	afx_msg void OnEnChangeEditHueLower();
 	afx_msg void OnEnChangeEditHueUpper();
 	afx_msg void OnEnChangeEditSatLower();

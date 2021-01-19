@@ -59,10 +59,12 @@ CImgPrcsTestDlg::CImgPrcsTestDlg(CWnd* pParent /*=NULL*/)
 	convertImgBuf = NULL;	 // bgr to hsv Image	
 	displayImgBuf = NULL;	 // hsv to bgr Image
 	isFileOpen = 0;
+	checkBlob = NULL;
 	hue_rangeLower = 0; hue_rangeUpper = 180; 
 	sat_rangeLower = 0; sat_rangeUpper = 255; 
 	val_rangeLower = 0; val_rangeUpper = 255; 
 	val_rangeBlob = 0; 
+	center_x = 0; center_y = 0;
 }
 
 void CImgPrcsTestDlg::DoDataExchange(CDataExchange* pDX)
@@ -247,21 +249,23 @@ void CImgPrcsTestDlg::OnBnClickedButtonOpen()
 	if(satBuf) cvReleaseImage(&satBuf);
 	if(valBuf) cvReleaseImage(&valBuf);
 	if(convertImgBuf) cvReleaseImage(&convertImgBuf);
+	if(displayImgBuf) cvReleaseImage(&displayImgBuf);
 
 	m_pMainImgBuf = cvLoadImage((char*)(LPCTSTR)dlg.GetPathName());
 
 	DisplayImage(m_pMainImgBuf);
-
+	
+	// h, s, v로 분할
 	hueBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 1);
 	satBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 1);
 	valBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 1);
 	cvSplit(m_pMainImgBuf, hueBuf, satBuf, valBuf, NULL);
 
-	isFileOpen = 1;
-
-	// m_pMainImgBuf -> hsv Image
+	// image -> bgr to hsv 
 	convertImgBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 3);
 	cvCvtColor(m_pMainImgBuf, convertImgBuf, CV_BGR2HSV);
+
+	isFileOpen = 1;
 
 }
 
@@ -351,6 +355,24 @@ void CImgPrcsTestDlg::OnBnClickedButtonDetect()
 	convertImgBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 3);
 	cvCvtColor(m_pMainImgBuf, convertImgBuf, CV_BGR2HSV);
 
+	if(hue_rangeLower > hue_rangeUpper){
+		int temp = hue_rangeUpper;
+		hue_rangeUpper = hue_rangeLower;
+		hue_rangeLower = temp;
+	}
+
+	if(sat_rangeLower > sat_rangeUpper){
+		int temp = sat_rangeUpper;
+		sat_rangeUpper = sat_rangeLower;
+		sat_rangeLower = temp;
+	}
+
+	if(val_rangeLower > val_rangeUpper){
+		int temp = val_rangeUpper;
+		val_rangeUpper = val_rangeLower;
+		val_rangeLower = temp;
+	}
+
 	for(int col=0; col<convertImgBuf->widthStep; col+=convertImgBuf->nChannels){
 		for (int row=0; row<convertImgBuf->height; row++){
 			
@@ -366,11 +388,6 @@ void CImgPrcsTestDlg::OnBnClickedButtonDetect()
 				convertImgBuf->imageData[idx] = 0;
 				convertImgBuf->imageData[idx+1] = 0; 
 				convertImgBuf->imageData[idx+2] = 0;
-			}
-			else{
-				/*
-				convertImgBuf->imageData[idx+1] = 0; 
-				convertImgBuf->imageData[idx+2] = -1;*/
 			}
 		}
 	}
@@ -389,11 +406,13 @@ void CImgPrcsTestDlg::OnBnClickedButtonBlobLabeling()
 		AfxMessageBox(_T("선택된 이미지가 없습니다."));
 		return;
 	}
-	/*
+
+	/*   특정 색상내에서 val값에 따라 labeling 가능하도록
 	cvReleaseImage(&convertImgBuf);
 	convertImgBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 3);
 	cvCvtColor(m_pMainImgBuf, convertImgBuf, CV_BGR2HSV);
 	*/
+
 	int countRow = convertImgBuf->height;
 	int countCol = convertImgBuf->widthStep;
 	
@@ -442,14 +461,21 @@ void CImgPrcsTestDlg::OnBnClickedButtonBlobLabeling()
 
 			if(checkBlob[idx] == 1){
 				
+				center_x = 0; center_y = 0;
+
 				blobPixel = blobSize(convertImgBuf, label_h, row, col);
+				center_x /= blobPixel;
+				center_y /= blobPixel;
+
 				/*
 				CString msg;
-				msg.Format(_T("label: %d", blobPixel));
+				msg.Format(_T("label: %d",blobPixel));
 				AfxMessageBox(msg);
 				*/
+				cvRectangle(convertImgBuf, cvPoint(center_y, center_x), cvPoint(center_y+1, center_x+1), cvScalar(255, 255, 0));
+
 				label_h += 10;
-			
+				
 			}
 		}	
 	}
@@ -473,14 +499,21 @@ int CImgPrcsTestDlg::blobSize(IplImage* image, int label_h, int row, int col){
 		return 0;
 	}
 	
-	if(checkBlob[idx] == 2 || checkBlob[idx] == 0) return 0;
+	if(checkBlob[idx] != 1 || checkBlob[idx] == 0) return 0;
+	
 
-	checkBlob[idx] = 2;
+	// 2이상으로 labeling
+	checkBlob[idx] = label_h/10+1;
+
+	// labeling 도형의 중심 좌표
+	center_x += row;
+	center_y += col/3;
 
 	convertImgBuf->imageData[idx] = label_h;
 	convertImgBuf->imageData[idx+1] = 255;
 	convertImgBuf->imageData[idx+2] = 255;
 
+	
 	return 1+blobSize(image, label_h, row, col-3)
 		+blobSize(image, label_h, row+1, col-3)
 		+blobSize(image, label_h, row+1, col)
@@ -580,4 +613,5 @@ void CImgPrcsTestDlg::OnEnChangeEditBlobVal()
 	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
 	val_rangeBlob = GetDlgItemInt(IDC_EDIT_BLOB_VAL);
 	if(val_rangeBlob < 0) val_rangeBlob = 0;
+	else if(val_rangeBlob > 255) val_rangeBlob = 255;
 }
