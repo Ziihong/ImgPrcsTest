@@ -35,11 +35,12 @@ protected:
 
 private:
 	IplImage* m_pMainImgBuf;
-	IplImage* hueBuf;
-	IplImage* satBuf;
-	IplImage* valBuf;
-	IplImage* convertImgBuf;
-	IplImage* displayImgBuf;
+	IplImage* m_hueImgBuf;
+	IplImage* m_satImgBuf;
+	IplImage* m_valImgBuf;
+	IplImage* m_detectImgBuf;
+	IplImage* m_blobImgBuf;
+	IplImage* m_adapThrImgBuf;
 	CStatic m_DispCtrl;
 	int isFileOpen;
 	int hue_rangeLower, hue_rangeUpper;
@@ -49,7 +50,6 @@ private:
 	int* checkBlob;  // iplimage->1차원 배열 형태로
 
 	int center_x, center_y;
-	
 
 public:
 	void DisplayImage(IplImage* pImage);//, CDC *pDC, CRect& rect);
@@ -62,6 +62,7 @@ public:
 	afx_msg void OnBnClickedButtonOrigin();
 
 	afx_msg void OnBnClickedButtonDetect();
+	afx_msg void OnBnClickedButtonAdaptiveThreshold();
 	afx_msg void OnBnClickedButtonBlobLabeling();
 	int blobSize(IplImage* image, int h_idx, int row, int col);
 	afx_msg void OnEnChangeEditHueLower();
@@ -71,4 +72,5 @@ public:
 	afx_msg void OnEnChangeEditValLower();
 	afx_msg void OnEnChangeEditValUpper();
 	afx_msg void OnEnChangeEditBlobVal();
+	
 };

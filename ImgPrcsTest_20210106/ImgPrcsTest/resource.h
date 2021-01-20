@@ -23,13 +23,14 @@
 #define IDC_EDIT_BLOB_VAL               1020
 #define IDC_BUTTON_BLOB_LABELING        1021
 #define IDC_GROUP_BLOB                  1022
-#define IDC_EDIT_BLOB_COL               1024
 #define IDC_EDIT_SAT_LOWER              1025
 #define IDC_EDIT_SAT_UPPER              1026
 #define IDC_GROUP_SAT                   1027
 #define IDC_EDIT_VAL_LOWER              1028
 #define IDC_EDIT_VAL_UPPER              1029
 #define IDC_GROUP_VAL                   1030
+#define IDC_BUTTON1                     1031
+#define IDC_BUTTON_ADAPTIVE_THRESHOLD   1031
 
 // Next default values for new objects
 // 
@@ -37,7 +38,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        129
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1025
+#define _APS_NEXT_CONTROL_VALUE         1032
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
