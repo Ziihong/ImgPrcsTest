@@ -38,15 +38,11 @@ private:
 	IplImage* m_hueImgBuf;
 	IplImage* m_satImgBuf;
 	IplImage* m_valImgBuf;
-	IplImage* m_detectImgBuf;  // hsv로 변환 후 색 검출
+	IplImage* m_hsvImgBuf;  // hsv로 변환 후 색 검출
 	IplImage* m_blobImgBuf;    // hsv로 변환 후 이미지 blob labeling
 	IplImage* m_adapThrImgBuf;
 	CStatic m_DispCtrl;
 	int isFileOpen;
-	int hue_rangeLower, hue_rangeUpper;
-	int sat_rangeLower, sat_rangeUpper; 
-	int	val_rangeLower, val_rangeUpper;
-	int val_rangeBlob;
 	int* checkBlob;  // iplimage->1차원 배열 형태로
 	int center_x, center_y;
 
@@ -62,12 +58,6 @@ public:
 	afx_msg void OnBnClickedButtonDetect();
 	afx_msg void OnBnClickedButtonAdaptiveThreshold();
 	afx_msg void OnBnClickedButtonBlobLabeling();
-	afx_msg void OnEnChangeEditHueLower();
-	afx_msg void OnEnChangeEditHueUpper();
-	afx_msg void OnEnChangeEditSatLower();
-	afx_msg void OnEnChangeEditSatUpper();
-	afx_msg void OnEnChangeEditValLower();
-	afx_msg void OnEnChangeEditValUpper();
 	afx_msg void OnEnChangeEditBlobVal();
 	afx_msg void OnBnClickedButtonQrCode();
 	int blobSize(IplImage* image, int h_idx, int row, int col);

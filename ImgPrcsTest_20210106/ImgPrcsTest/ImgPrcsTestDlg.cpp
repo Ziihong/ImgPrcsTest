@@ -72,15 +72,11 @@ CImgPrcsTestDlg::CImgPrcsTestDlg(CWnd* pParent /*=NULL*/)
 	m_hueImgBuf = NULL;
 	m_satImgBuf = NULL;
 	m_valImgBuf = NULL;
-	m_detectImgBuf = NULL;	 // detect Image	
+	m_hsvImgBuf = NULL;		 // bgr -> hsv Image	
 	m_blobImgBuf = NULL;	 // blob Image
 	m_adapThrImgBuf = NULL;  // adaptive threshold Image
 	isFileOpen = 0;
-	checkBlob = NULL;
-	hue_rangeLower = 0; hue_rangeUpper = 180; 
-	sat_rangeLower = 0; sat_rangeUpper = 255; 
-	val_rangeLower = 0; val_rangeUpper = 255; 
-	val_rangeBlob = 0; 
+	checkBlob = NULL; 
 	center_x = 0; center_y = 0;
 }
 
@@ -104,13 +100,6 @@ BEGIN_MESSAGE_MAP(CImgPrcsTestDlg, CDialog)
 	ON_BN_CLICKED(IDC_BUTTON_DETECT, &CImgPrcsTestDlg::OnBnClickedButtonDetect)
 	ON_BN_CLICKED(IDC_BUTTON_BLOB_LABELING, &CImgPrcsTestDlg::OnBnClickedButtonBlobLabeling)
 	ON_BN_CLICKED(IDC_BUTTON_ADAPTIVE_THRESHOLD, &CImgPrcsTestDlg::OnBnClickedButtonAdaptiveThreshold)
-	ON_EN_CHANGE(IDC_EDIT_HUE_LOWER, &CImgPrcsTestDlg::OnEnChangeEditHueLower)
-	ON_EN_CHANGE(IDC_EDIT_HUE_UPPER, &CImgPrcsTestDlg::OnEnChangeEditHueUpper)
-	ON_EN_CHANGE(IDC_EDIT_SAT_LOWER, &CImgPrcsTestDlg::OnEnChangeEditSatLower)
-	ON_EN_CHANGE(IDC_EDIT_SAT_UPPER, &CImgPrcsTestDlg::OnEnChangeEditSatUpper)
-	ON_EN_CHANGE(IDC_EDIT_VAL_LOWER, &CImgPrcsTestDlg::OnEnChangeEditValLower)
-	ON_EN_CHANGE(IDC_EDIT_VAL_UPPER, &CImgPrcsTestDlg::OnEnChangeEditValUpper)
-	ON_EN_CHANGE(IDC_EDIT_BLOB_VAL, &CImgPrcsTestDlg::OnEnChangeEditBlobVal)
 	ON_BN_CLICKED(IDC_BUTTON_QR_CODE, &CImgPrcsTestDlg::OnBnClickedButtonQrCode)
 END_MESSAGE_MAP()
 
@@ -194,6 +183,7 @@ void CImgPrcsTestDlg::OnPaint()
 		if(m_pMainImgBuf){
 			DisplayImage(m_pMainImgBuf);
 		}
+
 		CDialog::OnPaint();
 	}
 
@@ -264,12 +254,12 @@ void CImgPrcsTestDlg::OnBnClickedButtonOpen()
 	}
 	
 	// 변수 사용하기 전 메모리 할당 해제
-	if(m_pMainImgBuf) cvReleaseImage(&m_pMainImgBuf);
-	if(m_hueImgBuf) cvReleaseImage(&m_hueImgBuf);
-	if(m_satImgBuf) cvReleaseImage(&m_satImgBuf);
-	if(m_valImgBuf) cvReleaseImage(&m_valImgBuf);
-	if(m_detectImgBuf) cvReleaseImage(&m_detectImgBuf);
-	if(m_blobImgBuf) cvReleaseImage(&m_blobImgBuf);
+	if(m_pMainImgBuf)	cvReleaseImage(&m_pMainImgBuf);
+	if(m_hueImgBuf)		cvReleaseImage(&m_hueImgBuf);
+	if(m_satImgBuf)		cvReleaseImage(&m_satImgBuf);
+	if(m_valImgBuf)		cvReleaseImage(&m_valImgBuf);
+	if(m_hsvImgBuf)		cvReleaseImage(&m_hsvImgBuf);
+	if(m_blobImgBuf)	cvReleaseImage(&m_blobImgBuf);
 	if(m_adapThrImgBuf) cvReleaseImage(&m_adapThrImgBuf);
 
 	m_pMainImgBuf = cvLoadImage((char*)(LPCTSTR)dlg.GetPathName());
@@ -284,9 +274,15 @@ void CImgPrcsTestDlg::OnBnClickedButtonOpen()
 
 	isFileOpen = 1;
 
-	m_detectImgBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 3);
-	cvCvtColor(m_pMainImgBuf, m_detectImgBuf, CV_BGR2HSV);
+	m_hsvImgBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 3);
+	cvCvtColor(m_pMainImgBuf, m_hsvImgBuf, CV_BGR2HSV);
 
+	SetDlgItemInt(IDC_EDIT_HUE_LOWER, 0);
+	SetDlgItemInt(IDC_EDIT_HUE_UPPER, 180);
+	SetDlgItemInt(IDC_EDIT_SAT_LOWER, 0);
+	SetDlgItemInt(IDC_EDIT_SAT_UPPER, 255);
+	SetDlgItemInt(IDC_EDIT_VAL_LOWER, 0);
+	SetDlgItemInt(IDC_EDIT_VAL_UPPER, 255);
 }
 
 
@@ -298,13 +294,6 @@ void CImgPrcsTestDlg::OnBnClickedButtonOrigin()
 		return;
 	}
 	DisplayImage(m_pMainImgBuf);
-
-	/*
-	hue_rangeLower = 0; hue_rangeUpper = 180; 
-	sat_rangeLower = 0; sat_rangeUpper = 255; 
-	val_rangeLower = 0; val_rangeUpper = 255; 
-	val_rangeBlob = 0;
-	*/
 }
 
 
@@ -345,7 +334,7 @@ BOOL CImgPrcsTestDlg::DestroyWindow(){
 	cvReleaseImage( &m_hueImgBuf );
 	cvReleaseImage( &m_satImgBuf );
 	cvReleaseImage( &m_valImgBuf );
-	cvReleaseImage( &m_detectImgBuf );
+	cvReleaseImage( &m_hsvImgBuf );
 	cvReleaseImage( &m_blobImgBuf );
 	cvReleaseImage( &m_adapThrImgBuf );
 
@@ -379,19 +368,29 @@ void CImgPrcsTestDlg::OnBnClickedButtonDetect()
 		return;
 	}
 	
-	if(m_detectImgBuf) cvReleaseImage(&m_detectImgBuf);
-	m_detectImgBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 3);
-	cvCvtColor(m_pMainImgBuf, m_detectImgBuf, CV_BGR2HSV);
+	if(m_hsvImgBuf) cvReleaseImage(&m_hsvImgBuf);
+	m_hsvImgBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 3);
+	cvCvtColor(m_pMainImgBuf, m_hsvImgBuf, CV_BGR2HSV);
 
-	/*
-	OnEnChangeEditHueLower();
-	OnEnChangeEditHueUpper();
-	OnEnChangeEditSatLower();
-	OnEnChangeEditSatUpper();
-	OnEnChangeEditValLower();
-	OnEnChangeEditValUpper();
-	*/
+	
+	int hue_rangeLower = GetDlgItemInt(IDC_EDIT_HUE_LOWER);
+	int hue_rangeUpper = GetDlgItemInt(IDC_EDIT_HUE_UPPER);
+	int sat_rangeLower = GetDlgItemInt(IDC_EDIT_SAT_LOWER);
+	int sat_rangeUpper = GetDlgItemInt(IDC_EDIT_SAT_UPPER);
+	int val_rangeLower = GetDlgItemInt(IDC_EDIT_VAL_LOWER);
+	int val_rangeUpper = GetDlgItemInt(IDC_EDIT_VAL_UPPER);
+	 
 
+	// user input nothing || out of range
+	if(hue_rangeLower <= 0)							{ hue_rangeLower = 0;		SetDlgItemInt(IDC_EDIT_HUE_LOWER, 0); }
+	if(sat_rangeLower <= 0)							{ sat_rangeLower = 0;		SetDlgItemInt(IDC_EDIT_SAT_LOWER, 0); }
+	if(val_rangeLower == 0)							{ val_rangeLower = 0;		SetDlgItemInt(IDC_EDIT_VAL_LOWER, 0); }
+	if(hue_rangeUpper == 0 || hue_rangeUpper > 180) { hue_rangeUpper = 180;		SetDlgItemInt(IDC_EDIT_HUE_UPPER, 180); }
+	if(sat_rangeUpper == 0 || sat_rangeUpper > 255) { sat_rangeUpper = 255;		SetDlgItemInt(IDC_EDIT_SAT_UPPER, 255); }
+	if(val_rangeUpper == 0 || val_rangeUpper > 255) { val_rangeUpper = 255;		SetDlgItemInt(IDC_EDIT_VAL_UPPER, 255); }
+
+
+	// detect Image
 	if(hue_rangeLower > hue_rangeUpper){
 		int temp = hue_rangeUpper;
 		hue_rangeUpper = hue_rangeLower;
@@ -410,28 +409,28 @@ void CImgPrcsTestDlg::OnBnClickedButtonDetect()
 		val_rangeLower = temp;
 	}
 
-	for(int col=0; col<m_detectImgBuf->widthStep; col+=m_detectImgBuf->nChannels){
-		for (int row=0; row<m_detectImgBuf->height; row++){
+	for(int col=0; col<m_hsvImgBuf->widthStep; col+=m_hsvImgBuf->nChannels){
+		for (int row=0; row<m_hsvImgBuf->height; row++){
 			
-			int idx = col + row*m_detectImgBuf->widthStep;
-			unsigned char h = m_detectImgBuf->imageData[idx];
-			unsigned char s = m_detectImgBuf->imageData[idx+1];
-			unsigned char v = m_detectImgBuf->imageData[idx+2];
+			int idx = col + row*m_hsvImgBuf->widthStep;
+			unsigned char h = m_hsvImgBuf->imageData[idx];
+			unsigned char s = m_hsvImgBuf->imageData[idx+1];
+			unsigned char v = m_hsvImgBuf->imageData[idx+2];
 			
 			//yellow->!(20<=h && h<=32)
 			//blue->!(90<h && h<120)
 			//green->!(30<h && h<80)
 			if(!(hue_rangeLower<=h && h<=hue_rangeUpper && sat_rangeLower<=s && s<=sat_rangeUpper && val_rangeLower<=v && v<=val_rangeUpper)){
-				m_detectImgBuf->imageData[idx] = 0;
-				m_detectImgBuf->imageData[idx+1] = 0; 
-				m_detectImgBuf->imageData[idx+2] = 0;
+				m_hsvImgBuf->imageData[idx] = 0;
+				m_hsvImgBuf->imageData[idx+1] = 0; 
+				m_hsvImgBuf->imageData[idx+2] = 0;
 			}
 		}
 	}
 
-	cvCvtColor(m_detectImgBuf, m_detectImgBuf, CV_HSV2BGR);
+	cvCvtColor(m_hsvImgBuf, m_hsvImgBuf, CV_HSV2BGR);  // m_hsvImgBuf -> bgr Image
 
-	DisplayImage(m_detectImgBuf);
+	DisplayImage(m_hsvImgBuf);
 }
 
 
@@ -443,9 +442,9 @@ void CImgPrcsTestDlg::OnBnClickedButtonBlobLabeling()
 		return;
 	}
 
-	// 특정 색상내에서 val값에 따라 labeling 가능하도록
+	// clone detect Image
 	if(m_blobImgBuf) cvReleaseImage(&m_blobImgBuf);
-	m_blobImgBuf = cvCloneImage(m_detectImgBuf);
+	m_blobImgBuf = cvCloneImage(m_hsvImgBuf);
 
 	int countRow = m_blobImgBuf->height;
 	int countCol = m_blobImgBuf->widthStep;
@@ -453,13 +452,17 @@ void CImgPrcsTestDlg::OnBnClickedButtonBlobLabeling()
 	checkBlob = new int[countCol + countRow*countCol];
 
 
-	// checkBlob 초기화
+	// checkBlob initialize
 	for(int col=0; col<countCol; col++){
 		for (int row=0; row<countRow; row++){
 			int idx = col + row*countCol;
 			checkBlob[idx] = 0;
 		}
 	}
+
+	int val_rangeBlob = GetDlgItemInt(IDC_EDIT_BLOB_VAL);
+	if(val_rangeBlob <= 0)	val_rangeBlob = 0;
+	else if(val_rangeBlob > 255) val_rangeBlob = 255;
 	
 
 	int label_h = 10;
@@ -487,10 +490,10 @@ void CImgPrcsTestDlg::OnBnClickedButtonBlobLabeling()
 	}
 	
 
-	// labeling 개수 세기
+	// blob labeling
 	for(int col=0; col<countCol; col+=m_blobImgBuf->nChannels){
 		for(int row=0; row<countRow; row++){
-			int blobPixel;
+			int blobPixel;	// blob size
 			int idx = col + row*countCol;
 
 			if(checkBlob[idx] == 1){
@@ -499,12 +502,8 @@ void CImgPrcsTestDlg::OnBnClickedButtonBlobLabeling()
 				blobPixel = blobSize(m_blobImgBuf, label_h, row, col);
 				center_x /= blobPixel;
 				center_y /= blobPixel;
-				/*
-				CString msg;
-				msg.Format(_T("label: %d",blobPixel));
-				AfxMessageBox(msg);
-				*/
-				cvRectangle(m_blobImgBuf, cvPoint(center_y, center_x), cvPoint(center_y+1, center_x+1), cvScalar(255, 255, 0));
+			
+				cvCircle(m_blobImgBuf, cvPoint(center_y, center_x), 1, cvScalar((label_h+90), 255, 255));
 
 				label_h += 10;			
 			}
@@ -554,97 +553,6 @@ int CImgPrcsTestDlg::blobSize(IplImage* image, int label_h, int row, int col){
 }
 
 
-
-void CImgPrcsTestDlg::OnEnChangeEditHueLower()
-{
-	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
-	// CDialog::OnInitDialog() 함수를 재지정 
-	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
-	// 이 알림 메시지를 보내지 않습니다.
-
-	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	hue_rangeLower = GetDlgItemInt(IDC_EDIT_HUE_LOWER);
-	if(hue_rangeLower < 0) hue_rangeLower = 0;
-	
-}
-
-void CImgPrcsTestDlg::OnEnChangeEditHueUpper()
-{
-	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
-	// CDialog::OnInitDialog() 함수를 재지정 
-	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
-	// 이 알림 메시지를 보내지 않습니다.
-
-	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	hue_rangeUpper = GetDlgItemInt(IDC_EDIT_HUE_UPPER);
-	if(hue_rangeUpper > 180) hue_rangeUpper = 180;
-	
-}
-
-void CImgPrcsTestDlg::OnEnChangeEditSatLower()
-{
-	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
-	// CDialog::OnInitDialog() 함수를 재지정 
-	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
-	// 이 알림 메시지를 보내지 않습니다.
-
-	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	sat_rangeLower = GetDlgItemInt(IDC_EDIT_SAT_LOWER);
-	if(sat_rangeLower < 0) sat_rangeLower = 0;
-	
-}
-
-void CImgPrcsTestDlg::OnEnChangeEditSatUpper()
-{
-	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
-	// CDialog::OnInitDialog() 함수를 재지정 
-	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
-	// 이 알림 메시지를 보내지 않습니다.
-
-	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	sat_rangeUpper = GetDlgItemInt(IDC_EDIT_SAT_UPPER);
-	if(sat_rangeUpper > 255) sat_rangeUpper = 255;
-	
-}
-
-void CImgPrcsTestDlg::OnEnChangeEditValLower()
-{
-	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
-	// CDialog::OnInitDialog() 함수를 재지정 
-	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
-	// 이 알림 메시지를 보내지 않습니다.
-
-	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	val_rangeLower = GetDlgItemInt(IDC_EDIT_VAL_LOWER);
-	if(val_rangeLower < 0) val_rangeLower = 0;
-
-}
-
-void CImgPrcsTestDlg::OnEnChangeEditValUpper()
-{
-	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
-	// CDialog::OnInitDialog() 함수를 재지정 
-	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
-	// 이 알림 메시지를 보내지 않습니다.
-
-	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	val_rangeUpper = GetDlgItemInt(IDC_EDIT_VAL_UPPER);
-	if(val_rangeUpper > 255) val_rangeUpper = 255;
-}
-
-void CImgPrcsTestDlg::OnEnChangeEditBlobVal()
-{
-	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
-	// CDialog::OnInitDialog() 함수를 재지정 
-	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
-	// 이 알림 메시지를 보내지 않습니다.
-
-	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	val_rangeBlob = GetDlgItemInt(IDC_EDIT_BLOB_VAL);
-	if(val_rangeBlob < 0) val_rangeBlob = 0;
-	else if(val_rangeBlob > 255) val_rangeBlob = 255;
-}
-
 void CImgPrcsTestDlg::OnBnClickedButtonAdaptiveThreshold()
 {
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
@@ -659,9 +567,9 @@ void CImgPrcsTestDlg::OnBnClickedButtonAdaptiveThreshold()
 
 	DisplayImage(m_adapThrImgBuf);
 
-	// 이미지 저장
-		
-	cvSaveImage("C:\\Users\\user\\Pictures\\Saved Pictures\\adap_QR.jpg", m_adapThrImgBuf);
+
+	// adaptive threshold 이미지 저장
+	cvSaveImage("C:\\Users\\user\\Pictures\\Saved Pictures\\adapThr_QR.jpg", m_adapThrImgBuf);
 }
 
 
@@ -682,7 +590,6 @@ void CImgPrcsTestDlg::OnBnClickedButtonQrCode()
 	
 	strFileName = fd.GetPathName();
 
-
 	image.Load(strFileName);
 	CClientDC dc(this);
 	CRect rtRect(100,100,image.GetWidth() + 100,image.GetHeight() + 100);
@@ -699,9 +606,7 @@ void CImgPrcsTestDlg::OnBnClickedButtonQrCode()
 		dwBitCount = pBitmap->GetBitmapBits(dwBitCount, bData);
 		RGBTRIPLE* p = (RGBTRIPLE*)bData;
 		BYTE *bGraData = new BYTE[dwBitCount];
-		//int nIndex = 0;
-		//for(int nImageIndex = -3 ;nImageIndex  <4 ; nImageIndex ++)
-		{
+
 			int nImageIndex =   (dwBitCount / bmp.bmHeight);
 			for(int iter = 0; iter <bmp.bmHeight; iter++ )
 			{
@@ -717,7 +622,7 @@ void CImgPrcsTestDlg::OnBnClickedButtonQrCode()
 					{
 						int nIndex = iter * (bmp.bmWidth) + iterA;
 						int nIndexRGB = iter * (nImageIndex) + iterA*3;
-						int nRGB = bData[nIndexRGB ]           *0.299 +bData[nIndexRGB +1]*0.587+ bData[nIndexRGB +2]*0.114;
+						int nRGB = bData[nIndexRGB ]*0.299 +bData[nIndexRGB +1]*0.587+ bData[nIndexRGB +2]*0.114;
 						bGraData[nIndex] = nRGB;
 						if(bGraData[nIndex] > 130)
 						{
@@ -734,10 +639,9 @@ void CImgPrcsTestDlg::OnBnClickedButtonQrCode()
 			
 			// 이 아래 부분 부터 활용 
 
-			/*  edit
+			/*  Edit
 			// m_adapThreImgBuf -> QR 인식
 			// IplImage to byte
-
 			
 			BYTE *bGraData;
 			BITMAP bmp;
@@ -788,7 +692,7 @@ void CImgPrcsTestDlg::OnBnClickedButtonQrCode()
 				TRACE("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
 				//continue;
 			}
-		}
+
 		
 
 		//BinaryBit->release();
