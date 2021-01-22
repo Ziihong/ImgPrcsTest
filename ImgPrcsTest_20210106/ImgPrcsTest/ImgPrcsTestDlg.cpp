@@ -7,6 +7,22 @@
 #include "ImgPrcsTestDlg.h"
 
 
+
+
+// QR test
+#include "zxing/LuminanceSource.h"
+
+using namespace zxing;
+
+#include <zxing/qrcode/QRCodeReader.h>
+#include <zxing/common/HybridBinarizer.h>
+using namespace qrcode;
+
+
+
+
+
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -78,6 +94,7 @@ BEGIN_MESSAGE_MAP(CImgPrcsTestDlg, CDialog)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
+
 	//}}AFX_MSG_MAP
 	ON_BN_CLICKED(IDC_BUTTON_OPEN, &CImgPrcsTestDlg::OnBnClickedButtonOpen)
 	ON_BN_CLICKED(IDC_BUTTON_HUE, &CImgPrcsTestDlg::OnBnClickedButtonHue)
@@ -94,7 +111,7 @@ BEGIN_MESSAGE_MAP(CImgPrcsTestDlg, CDialog)
 	ON_EN_CHANGE(IDC_EDIT_VAL_LOWER, &CImgPrcsTestDlg::OnEnChangeEditValLower)
 	ON_EN_CHANGE(IDC_EDIT_VAL_UPPER, &CImgPrcsTestDlg::OnEnChangeEditValUpper)
 	ON_EN_CHANGE(IDC_EDIT_BLOB_VAL, &CImgPrcsTestDlg::OnEnChangeEditBlobVal)
-	
+	ON_BN_CLICKED(IDC_BUTTON_QR_CODE, &CImgPrcsTestDlg::OnBnClickedButtonQrCode)
 END_MESSAGE_MAP()
 
 
@@ -335,7 +352,7 @@ BOOL CImgPrcsTestDlg::DestroyWindow(){
 	return CDialog::DestroyWindow();
 }
 
-/*
+
 // Mat to IplImage*
 IplImage* CImgPrcsTestDlg::Mat_toIpl(Mat img){
 	IplImage* convertImg;
@@ -351,7 +368,7 @@ Mat CImgPrcsTestDlg::Ipl_toMat(IplImage* img){
 
 	return convertImg;
 }
-*/
+
 
 void CImgPrcsTestDlg::OnBnClickedButtonDetect()
 {
@@ -631,8 +648,165 @@ void CImgPrcsTestDlg::OnEnChangeEditBlobVal()
 void CImgPrcsTestDlg::OnBnClickedButtonAdaptiveThreshold()
 {
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+
+	if(!isFileOpen){
+		AfxMessageBox(_T("선택된 이미지가 없습니다."));
+		return;
+	}
+
 	m_adapThrImgBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 1);
-	cvAdaptiveThreshold(m_hueImgBuf, m_adapThrImgBuf, 250, CV_ADAPTIVE_THRESH_MEAN_C, CV_THRESH_BINARY, 31, 0);
+	cvAdaptiveThreshold(m_valImgBuf, m_adapThrImgBuf, 250, CV_ADAPTIVE_THRESH_MEAN_C, CV_THRESH_BINARY, 31, 0);
 
 	DisplayImage(m_adapThrImgBuf);
+
+	// 이미지 저장
+		
+	cvSaveImage("C:\\Users\\user\\Pictures\\Saved Pictures\\adap_QR.jpg", m_adapThrImgBuf);
+}
+
+
+
+void CImgPrcsTestDlg::OnBnClickedButtonQrCode()
+{
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+
+
+	CImage image;
+	CFileDialog fd(TRUE);
+	CString strFileName = " ";
+	if(fd.DoModal() != IDOK)
+	{
+		AfxMessageBox(_T("파일을 선택하지 않았습니다."));
+		return;
+	}
+	
+	strFileName = fd.GetPathName();
+
+
+	image.Load(strFileName);
+	CClientDC dc(this);
+	CRect rtRect(100,100,image.GetWidth() + 100,image.GetHeight() + 100);
+	image.BitBlt(dc.m_hDC,rtRect,CPoint(0,0));
+
+	CBitmap* pBitmap = CBitmap::FromHandle(image);   //객체에 대한 포인터 반환
+	
+	if(pBitmap)
+	{
+		BITMAP bmp;
+		pBitmap->GetBitmap(&bmp);   //비트맵 이미지 속성 검색
+		DWORD dwBitCount = bmp.bmHeight * bmp.bmWidthBytes+1000;
+		BYTE *bData = new BYTE[dwBitCount];
+		dwBitCount = pBitmap->GetBitmapBits(dwBitCount, bData);
+		RGBTRIPLE* p = (RGBTRIPLE*)bData;
+		BYTE *bGraData = new BYTE[dwBitCount];
+		//int nIndex = 0;
+		//for(int nImageIndex = -3 ;nImageIndex  <4 ; nImageIndex ++)
+		{
+			int nImageIndex =   (dwBitCount / bmp.bmHeight);
+			for(int iter = 0; iter <bmp.bmHeight; iter++ )
+			{
+				if(bmp.bmBitsPixel == 8)
+				{
+					memcpy(bGraData,bData,dwBitCount);
+					break;
+				}
+				for(int iterA = 0; iterA < bmp.bmWidth; iterA++)
+				{
+				
+					if(bmp.bmBitsPixel == 24)
+					{
+						int nIndex = iter * (bmp.bmWidth) + iterA;
+						int nIndexRGB = iter * (nImageIndex) + iterA*3;
+						int nRGB = bData[nIndexRGB ]           *0.299 +bData[nIndexRGB +1]*0.587+ bData[nIndexRGB +2]*0.114;
+						bGraData[nIndex] = nRGB;
+						if(bGraData[nIndex] > 130)
+						{
+							//TRACE("X");
+						}else
+						{
+							//TRACE(" ");
+						}
+					}
+				}
+				TRACE("\n");
+			}
+
+			
+			// 이 아래 부분 부터 활용 
+
+			/*  edit
+			// m_adapThreImgBuf -> QR 인식
+			// IplImage to byte
+
+			
+			BYTE *bGraData;
+			BITMAP bmp;
+			bGraData = new BYTE[m_adapThrImgBuf->widthStep*m_adapThrImgBuf->height];
+			memcpy(bGraData, m_adapThrImgBuf->imageData, m_adapThrImgBuf->imageSize);
+			*/	
+			
+
+			GreyscaleLuminanceSource*  GLS = new GreyscaleLuminanceSource(bGraData, bmp.bmWidth, bmp.bmHeight, 0, 0, bmp.bmWidth, bmp.bmHeight);
+			//LuminanceSource* pLs = (LuminanceSource* )&GLS;
+
+			Ref<LuminanceSource> tLs;
+			Ref<Binarizer> Br;
+			Ref<BinaryBitmap> BinaryBit;
+			Ref<Result> RefResult;
+		
+			//Ref<LuminanceSource> tLs = (Ref<LuminanceSource>)pLs;
+		
+			tLs = GLS;
+			GlobalHistogramBinarizer *GHB = new GlobalHistogramBinarizer (tLs);
+		
+			Br = GHB;
+			BinaryBitmap* BB = new BinaryBitmap(Br);		
+		
+			BinaryBit = BB;
+			MultiFormatReader MRF;
+			try
+			{
+				double dMax = fmax(10,100);  // 큰 수
+				dMax = fminl(10,100);		 // 작은 수
+				dMax = fmaxl(10,100);		 // 큰 수
+
+				QRCodeReader qrReader;
+				DecodeHints dh;
+				dh.addFormat(BarcodeFormat_QR_CODE);		// 디코더 준비
+		
+				RefResult = qrReader.decode(BinaryBit,dh);	// 디코딩 결과
+				//MultiFormatReader MFR;					// 바코드 형식 디코딩
+				//RefResult  = MFR.decode(BinaryBit);
+				AfxMessageBox(CString(RefResult->getText()->getText().c_str()));
+				//break;
+
+			}catch(zxing::Exception e)
+			{
+				CString strTemp;
+				strTemp.Format(_T("%s"), CA2W(e.what()));
+				AfxMessageBox(_T("QR code를 찾을 수 없습니다."));
+				TRACE("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+				//continue;
+			}
+		}
+		
+
+		//BinaryBit->release();
+		//Br->release();
+		//tLs->release();
+		
+		
+		pBitmap->DeleteObject();
+		delete[] bData;
+		delete[] bGraData;
+		
+
+		//Br->release();
+		
+		//RefResult->release();
+		//BinaryBit->release();
+		
+		//strTemp.Format(_T("%s"),RefResult->getText()->getText());	
+	}
+
 }

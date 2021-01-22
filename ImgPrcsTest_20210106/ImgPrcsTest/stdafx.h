@@ -41,6 +41,22 @@
 
 
 
+//QR test
+#include "zxing/MultiFormatReader.h"
+#include "zxing/common/GreyscaleLuminanceSource.h"
+#include "zxing/common/GlobalHistogramBinarizer.h"
+#include "zxing/BinaryBitmap.h"
+#include "zxing/Binarizer.h"
+
+#define NAN 0
+long double fmaxl(long double a,long double b );
+double fmax(double a,double b );
+double fminl(double a,double b );
+int isnan(double nan);
+
+
+
+
 
 
 // open cv
@@ -67,7 +83,6 @@ using namespace cv;
 	#pragma comment(lib, "opencv_imgproc310.lib")
 	#pragma comment(lib, "opencv_imgcodecs310.lib")
 #endif
-
 
 
 
