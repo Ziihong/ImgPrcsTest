@@ -68,13 +68,13 @@ CImgPrcsTestDlg::CImgPrcsTestDlg(CWnd* pParent /*=NULL*/)
 	: CDialog(CImgPrcsTestDlg::IDD, pParent)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
-	m_pMainImgBuf = NULL;     // Load Image
-	m_hueImgBuf = NULL;
-	m_satImgBuf = NULL;
-	m_valImgBuf = NULL;
-	m_hsvImgBuf = NULL;		 // bgr -> hsv Image	
-	m_blobImgBuf = NULL;	 // blob Image
-	m_adapThrImgBuf = NULL;  // adaptive threshold Image
+	m_pMainImgBuf = NULL;       // Load Image. original Image
+	m_hueImgBuf = NULL;			// h Image
+	m_satImgBuf = NULL;			// s Image
+	m_valImgBuf = NULL;			// v Image
+	m_hsvImgBuf = NULL;			// bgr -> hsv Image	
+	m_blobImgBuf = NULL;		// blob Image
+	m_adapThrImgBuf = NULL;		// adaptive threshold Image
 	isFileOpen = 0;
 	checkBlob = NULL; 
 	center_x = 0; center_y = 0;
@@ -276,7 +276,9 @@ void CImgPrcsTestDlg::OnBnClickedButtonOpen()
 
 	m_hsvImgBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 3);
 	cvCvtColor(m_pMainImgBuf, m_hsvImgBuf, CV_BGR2HSV);
-
+	
+	
+	// 범위 설정
 	SetDlgItemInt(IDC_EDIT_HUE_LOWER, 0);
 	SetDlgItemInt(IDC_EDIT_HUE_UPPER, 180);
 	SetDlgItemInt(IDC_EDIT_SAT_LOWER, 0);
@@ -390,7 +392,7 @@ void CImgPrcsTestDlg::OnBnClickedButtonDetect()
 	if(val_rangeUpper == 0 || val_rangeUpper > 255) { val_rangeUpper = 255;		SetDlgItemInt(IDC_EDIT_VAL_UPPER, 255); }
 
 
-	// detect Image
+	
 	if(hue_rangeLower > hue_rangeUpper){
 		int temp = hue_rangeUpper;
 		hue_rangeUpper = hue_rangeLower;
@@ -409,6 +411,8 @@ void CImgPrcsTestDlg::OnBnClickedButtonDetect()
 		val_rangeLower = temp;
 	}
 
+
+	// detect Image
 	for(int col=0; col<m_hsvImgBuf->widthStep; col+=m_hsvImgBuf->nChannels){
 		for (int row=0; row<m_hsvImgBuf->height; row++){
 			
@@ -428,7 +432,8 @@ void CImgPrcsTestDlg::OnBnClickedButtonDetect()
 		}
 	}
 
-	cvCvtColor(m_hsvImgBuf, m_hsvImgBuf, CV_HSV2BGR);  // m_hsvImgBuf -> bgr Image
+	// m_hsvImgBuf -> bgr Image
+	cvCvtColor(m_hsvImgBuf, m_hsvImgBuf, CV_HSV2BGR);  
 
 	DisplayImage(m_hsvImgBuf);
 }
@@ -442,6 +447,7 @@ void CImgPrcsTestDlg::OnBnClickedButtonBlobLabeling()
 		return;
 	}
 
+
 	// clone detect Image
 	if(m_blobImgBuf) cvReleaseImage(&m_blobImgBuf);
 	m_blobImgBuf = cvCloneImage(m_hsvImgBuf);
@@ -449,10 +455,10 @@ void CImgPrcsTestDlg::OnBnClickedButtonBlobLabeling()
 	int countRow = m_blobImgBuf->height;
 	int countCol = m_blobImgBuf->widthStep;
 	
-	checkBlob = new int[countCol + countRow*countCol];
-
 
 	// checkBlob initialize
+	checkBlob = new int[countCol + countRow*countCol];
+	
 	for(int col=0; col<countCol; col++){
 		for (int row=0; row<countRow; row++){
 			int idx = col + row*countCol;
@@ -563,7 +569,7 @@ void CImgPrcsTestDlg::OnBnClickedButtonAdaptiveThreshold()
 	}
 
 	m_adapThrImgBuf = cvCreateImage(cvGetSize(m_pMainImgBuf), IPL_DEPTH_8U, 1);
-	cvAdaptiveThreshold(m_valImgBuf, m_adapThrImgBuf, 250, CV_ADAPTIVE_THRESH_MEAN_C, CV_THRESH_BINARY, 31, 0);
+	cvAdaptiveThreshold(m_valImgBuf, m_adapThrImgBuf, 255, CV_ADAPTIVE_THRESH_MEAN_C, CV_THRESH_BINARY, 31, 0);
 
 	DisplayImage(m_adapThrImgBuf);
 
@@ -579,6 +585,12 @@ void CImgPrcsTestDlg::OnBnClickedButtonQrCode()
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
 
 
+	if(!isFileOpen){
+		AfxMessageBox(_T("선택된 이미지가 없습니다."));
+		return;
+	}
+
+	/*
 	CImage image;
 	CFileDialog fd(TRUE);
 	CString strFileName = " ";
@@ -587,13 +599,46 @@ void CImgPrcsTestDlg::OnBnClickedButtonQrCode()
 		AfxMessageBox(_T("파일을 선택하지 않았습니다."));
 		return;
 	}
-	
 	strFileName = fd.GetPathName();
-
 	image.Load(strFileName);
+
+	// 화면 띄우기
 	CClientDC dc(this);
 	CRect rtRect(100,100,image.GetWidth() + 100,image.GetHeight() + 100);
-	image.BitBlt(dc.m_hDC,rtRect,CPoint(0,0));
+	image.BitBlt(dc.m_hDC,rtRect,CPoint(0,0));	 
+	*/
+
+
+	// Mat to CImage 
+	Mat temp;
+	if(!m_adapThrImgBuf) temp = Ipl_toMat(m_valImgBuf);
+	else temp = Ipl_toMat(m_adapThrImgBuf);
+
+	
+	int width = temp.cols;
+	int height = temp.rows;
+	int channels = temp.channels(); 
+	
+	// **이미지 픽셀 수 짝수여야함
+	if(width % 2 == 1) width+=1;
+	if(height % 2 == 1) height+=1;
+
+
+	CImage image;
+	image.Create(width, height, 8*channels);
+
+	uchar *ps;
+	uchar *pimg = (uchar*)image.GetBits();
+	int step = image.GetPitch();
+
+	for(int i=0; i<height; ++i){
+		ps = (temp.ptr<uchar>(i));
+		for(int j=0; j<width; ++j){
+			*(pimg + i*step + j) = ps[j];
+		}
+	}
+	// Mat to CImage
+
 
 	CBitmap* pBitmap = CBitmap::FromHandle(image);   //객체에 대한 포인터 반환
 	
@@ -637,18 +682,7 @@ void CImgPrcsTestDlg::OnBnClickedButtonQrCode()
 			}
 
 			
-			// 이 아래 부분 부터 활용 
-
-			/*  Edit
-			// m_adapThreImgBuf -> QR 인식
-			// IplImage to byte
-			
-			BYTE *bGraData;
-			BITMAP bmp;
-			bGraData = new BYTE[m_adapThrImgBuf->widthStep*m_adapThrImgBuf->height];
-			memcpy(bGraData, m_adapThrImgBuf->imageData, m_adapThrImgBuf->imageSize);
-			*/	
-			
+			// 이 아래 부분 부터 활용 	
 
 			GreyscaleLuminanceSource*  GLS = new GreyscaleLuminanceSource(bGraData, bmp.bmWidth, bmp.bmHeight, 0, 0, bmp.bmWidth, bmp.bmHeight);
 			//LuminanceSource* pLs = (LuminanceSource* )&GLS;
